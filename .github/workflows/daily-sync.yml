@@ -1,0 +1,36 @@
+name: Bellhaven CRM sync
+
+# 13:00 UTC is 09:00 in Ohio, so the queue is waiting when the team starts.
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scrape the website and rebuild the proposal queue
+        env:
+          CRM_TOKEN: ${{ secrets.CRM_TOKEN }}
+        run: python pipeline.py
+
+      # The queue is the output of a scheduled run. Writes still require a
+      # person in the review app, so this job never touches the CRM.
+      - name: Publish the queue for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: proposals
+          path: |
+            data/proposals.json
+            data/locations.json
+          retention-days: 30
